@@ -1,0 +1,183 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/html">
+<head>
+    <title>商品详情</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <!-- jquery -->
+    <script type="text/javascript" th:src="@{/js/jquery.min.js}"></script>
+    <!-- bootstrap -->
+    <link rel="stylesheet" type="text/css" th:href="@{/bootstrap/css/bootstrap.min.css}" />
+    <script type="text/javascript" th:src="@{/bootstrap/js/bootstrap.min.js}"></script>
+    <!-- jquery-validator -->
+    <script type="text/javascript" th:src="@{/jquery-validation/jquery.validate.min.js}"></script>
+    <script type="text/javascript" th:src="@{/jquery-validation/localization/messages_zh.min.js}"></script>
+    <!-- layer -->
+    <script type="text/javascript" th:src="@{/layer/layer.js}"></script>
+    <!-- md5.js -->
+    <script type="text/javascript" th:src="@{/js/md5.min.js}"></script>
+    <!-- common.js -->
+    <script type="text/javascript" th:src="@{/js/common.js}"></script>
+</head>
+<body>
+    <div class = "panel panel-default">
+        <table class="table" id="goodsDetail">
+            <tr>
+                <td>商品名称</td>
+                <td th:text ="${goods.goodsName}"></td>
+            </tr>
+            <tr>
+                <td>商品图片</td>
+                <td><img th:src="@{${goods.goodsImg}}"/></td>
+            </tr>
+            <tr>
+                <td>商品原价</td>
+                <td th:text ="${goods.goodsPrice}"></td>
+            </tr>
+            <tr>
+                <td>秒杀价</td>
+                <td th:text ="${goods.seckillPrice}"></td>
+            </tr>
+            <tr>
+                <td>库存</td>
+                <td th:text ="${goods.seckillCount}"></td>
+            </tr>
+            <tr>
+                <td>秒杀开始时间</td>
+                <td th:text = "${#dates.format(goods.startDate, 'yyyy-MM-dd HH:mm:ss')}"></td>
+            </tr>
+            <tr>
+                <td id = "secKillTip">
+                    <input type = "hidden" id = "beginRemainSeconds" th:value = "${beginRemainSeconds}" />
+                    <input type = "hidden" id = "endRemainSeconds" th:value = "${endRemainSeconds}" />
+                    <input type = "hidden" id = "secKillStatus" th:value = "${secKillStatus}" />
+                    <input type = "hidden" id="goodsId" th:value="${goods.id}"/>
+                    <span th:if = "${secKillStatus eq 0}">秒杀倒计时:
+                        <span id = "countDownTime" th:text = "${beginRemainSeconds}"></span> 秒
+                    </span>
+                    <span th:if = "${secKillStatus eq 1}">秒杀进行中...剩余
+                        <span id = "endTime" th:text = "${endRemainSeconds}"></span> 秒
+                    </span>
+                    <span th:if = "${secKillStatus eq 2}">秒杀已结束</span>
+                </td>
+                <td>
+                    <form id = "secKillForm" method="post">
+                        <input onclick="getMiaoshaPath()" class="btn btn-primary btn-block" type="submit" id="buyButton" th:value ="立即秒杀" style="width:40%"></input>
+                    </form>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+<script>
+    // function getMiaoshaPath(){
+    //     var goodsId = $("#goodsId").val();
+    //     alert(goodsId);
+    //     $.ajax({
+    //         url:"/scdkill/getPath",
+    //         type:"GET",
+    //         data:{
+    //             goodsId:goodsId
+    //         },
+    //         success:function(data) {
+    //             if (data.code == 0) {
+    //                 var path = data.data;
+    //                 alert("789");
+    //                 alert(path);
+    //             }else{
+    //                 alert("123");
+    //                 layer.msg(data.msg);
+    //             }
+    //         },
+    //         error:function () {
+    //             alert(data.msg);
+    //             layer.msg(data.msg);
+    //         }
+    //         });
+    // }
+    function getMiaoshaPath(){
+        var goodsId = $("#goodsId").val();
+        g_showLoading();
+        $.ajax({
+            url:"/scdkill/path",
+            type:"GET",
+            data:{
+                goodsId:goodsId,
+             //   verifyCode:$("#verifyCode").val()
+            },
+            success:function(data){
+                if(data.code == 0){
+                    var path = data.date;
+                    doMiaosha(path);
+                }else{
+                    layer.msg(data.msg);
+                }
+            },
+            error:function(){
+                layer.msg("客户端请求有误");
+            }
+        });
+    }
+    function doMiaosha(path){
+        $.ajax({
+                url:"/scdkill/"+ path + "/do_secKill",
+                type:"GET",
+                data:{
+                    goodsId:$("#goodsId").val()
+                },
+                success:function(data){
+                    alert(data.code);
+                  if (data.code != 0) {
+                      layer.msg(data.msg);
+                  }
+                },
+                error:function(){
+                    layer.msg("客户端请求有误");
+                }
+            });
+    }
+    $(function(){
+        countDown();
+    });
+    function countDown(){
+        var beginRemainSeconds = $("#beginRemainSeconds").val();
+        var endRemainSeconds = $("#endRemainSeconds").val();
+        var timeout;
+        if (beginRemainSeconds > 0) {
+            $("#buyButton").attr("disabled",true);
+            timeout = setTimeout(function () {
+                $("#countDownTime").text(beginRemainSeconds - 1);
+                $("#beginRemainSeconds").val(beginRemainSeconds - 1);
+                $("#endRemainSeconds").val(endRemainSeconds - 1);
+            countDown();s
+        },1000);
+    }else if(beginRemainSeconds == 0) {
+        $("#buyButton").attr("disabled",false);
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+
+        endCountDown();
+    }else{
+            $("#buyButton").attr("disabled",true);
+            $("#secKillTip").html("秒杀已结束");
+        }
+    }
+    function endCountDown(){
+        var endRemainSeconds = $("#endRemainSeconds").val();
+        var endtimeout;
+        if (endRemainSeconds > 0) {
+            $("#buyButton").attr("disabled", false);
+            endtimeout = setTimeout(function () {
+                $("#endRemainSeconds").val(endRemainSeconds - 1);
+                endCountDown();
+            }, 1000);
+        }else{
+            if (endtimeout) {
+                clearTimeout(endtimeout);
+            }
+            $("#buyButton").attr("disabled",true);
+            $("#secKillTip").html("秒杀已结束");
+        }
+    }
+</script>
+</html>
